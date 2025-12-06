@@ -25,6 +25,7 @@
     "next": "16.0.7",
     "next-auth": "^4.24.13",
     "next-auth-steam": "^0.4.0",
+    "@ai-sdk/google": "^1.0.0",
     "openai": "^6.9.1",
     "react": "19.2.1",
     "react-dom": "19.2.1",
