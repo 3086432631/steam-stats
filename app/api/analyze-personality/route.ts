@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import OpenAI from "openai";
 import { google } from '@ai-sdk/google';
+import { generateText } from 'ai'; // 核心修改：引入 Vercel AI SDK 的生成函数
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// 不需要初始化 OpenAI 了
+// const openai = new OpenAI... (删除)
 
 interface GameStats {
   totalGames: number;
@@ -61,6 +60,7 @@ ${reviewsList}
 `;
     }
 
+    // 你的 Prompt 保持不变，非常好
     const prompt = `你是一位资深的心理学家和游戏行为分析师，精通MBTI人格理论。请根据以下Steam游戏库数据，深度分析这位玩家的MBTI人格类型。
 
 ## 玩家游戏数据
@@ -177,22 +177,19 @@ ${reviewsSection}
   }
 }`;
 
-    const response = await openai.responses.create({
-      model: "models/gemini-1.5-pro",
-      instructions:
-        "你是一位专业的MBTI分析师和游戏心理学专家。你的分析必须客观公正，避免刻板印象。关键原则：1) 16种MBTI类型在玩家中分布均匀，不要偏向任何特定类型；2) 玩单机游戏不等于内向，要看动机和风格；3) 游戏库大不等于P型，要看实际行为；4) 每个维度独立判断，用具体游戏证据支持。选择代表游戏时，必须确保多样性——从不同类型的游戏中各选一款。",
-      input: prompt,
-      text: {
-        format: { type: "json_object" },
-      },
+    // 核心修改：使用 Vercel AI SDK 的 generateText
+    const { text } = await generateText({
+      model: google("models/gemini-1.5-pro"), // 指定 Google 模型
+      prompt: prompt, // 放入你的 Prompt
+      system: "你是一位专业的MBTI分析师和游戏心理学专家。你的分析必须客观公正，避免刻板印象。关键原则：1) 16种MBTI类型在玩家中分布均匀，不要偏向任何特定类型；2) 玩单机游戏不等于内向，要看动机和风格；3) 游戏库大不等于P型，要看实际行为；4) 每个维度独立判断，用具体游戏证据支持。选择代表游戏时，必须确保多样性——从不同类型的游戏中各选一款。", // 系统提示词放在这里
     });
 
-    const responseText = response.output_text || "";
-
-    // JSON mode guarantees valid JSON output
-    const result = JSON.parse(responseText);
+    // 尝试解析 JSON，如果模型返回了 Markdown 代码块（```json ... ```），需要清理一下
+    const cleanText = text.replace(/```json\n?|```/g, "").trim();
+    const result = JSON.parse(cleanText);
 
     return NextResponse.json(result);
+
   } catch (error) {
     console.error("Error analyzing personality:", error);
     return NextResponse.json(
